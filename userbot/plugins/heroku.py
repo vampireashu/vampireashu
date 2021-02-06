@@ -1,14 +1,17 @@
 import asyncio
 import math
 import os
+import shutil 
+import psutil
 
 import heroku3
 import requests
-import urllib3
 
-from userbot.cmdhelp import CmdHelp
+from userbot import CMD_HELP
 from userbot.uniborgConfig import Config
-from userbot.utils import admin_cmd, edit_or_reply, sudo_cmd
+from userbot.utils import admin_cmd, sudo_cmd, edit_or_reply
+from userbot.cmdhelp import CmdHelp
+import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # =====================================
@@ -28,6 +31,8 @@ hell_logo = "./KRAKEN/hellbot_logo.jpg"
     admin_cmd(pattern="(set|get|del) var(?: |$)(.*)(?: |$)([\s\S]*)", outgoing=True)
 )
 async def variable(var):
+    if var.fwd_from:
+        return
     """
     Manage most of ConfigVars setting, set new var, get current var,
     or delete var...
@@ -112,6 +117,8 @@ async def variable(var):
 @bot.on(admin_cmd(pattern="usage(?: |$)", outgoing=True))
 @bot.on(sudo_cmd(pattern="usage(?: |$)", allow_sudo=True))
 async def dyno_usage(dyno):
+    if dyno.fwd_from:
+        return
     """
     Get your account Dyno Usage
     """
@@ -157,6 +164,18 @@ async def dyno_usage(dyno):
     AppHours = math.floor(AppQuotaUsed / 60)
     AppMinutes = math.floor(AppQuotaUsed % 60)
 
+    total,used,free =  shutil.disk_usage('.') 
+    down = (psutil.net_io_counters().bytes_sent)
+    cpuUsage = psutil.cpu_percent(interval=0.5)
+    memory = psutil.virtual_memory().percent
+    disk = psutil.disk_usage('/').percent
+    recv = (psutil.net_io_counters().bytes_recv)
+
+       TOTAL = (total//(2**30))    
+       USED = (used//(2**30))    
+       FREE = (free//(2**30))
+       DOWN = (down//(2**30))
+       UP = (recv//(2**30))
     await asyncio.sleep(1.5)
 
     return await dyno.edit(
@@ -168,11 +187,14 @@ async def dyno_usage(dyno):
         " ➠ `Dyno hours quota remaining this month`:\n"
         f"     ★  `{hours}`**h**  `{minutes}`**m**  "
         f"**|**  [`{percentage}`**%**]"
+        f"** ➠ Total Space: {TOTAL}GB**"
     )
 
 
 @borg.on(admin_cmd(pattern="logs$", outgoing=True))
 async def _(dyno):
+    if dyno.fwd_from:
+        return
     try:
         Heroku = heroku3.from_key(HEROKU_API_KEY)
         app = Heroku.app(HEROKU_APP_NAME)
@@ -188,7 +210,7 @@ async def _(dyno):
         .get("result")
         .get("key")
     )
-    hell_url = f"⚡ Pasted this logs.txt to [NekoBin](https://nekobin.com/{hell_key}) ⚡"
+    hell_url = f"⚡ Pasted this logs.txt to [NekoBin](https://nekobin.com/{hell_key}) && [RAW PAGE](https://nekobin.com/raw/{hell_key}) ⚡"
     await dyno.edit("Getting Logs....")
     with open("logs.txt", "w") as log:
         log.write(app.get_log())
